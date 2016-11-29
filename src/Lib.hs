@@ -22,6 +22,7 @@ import Servant
 import Servant.Docs
 import Control.Monad.Trans (MonadIO, liftIO)
 import GHC.Generics (Generic)
+import Data.Maybe (listToMaybe)
 
 data KeyVal = KeyVal
             { key :: Key
@@ -40,7 +41,8 @@ type Key = Text
 $(deriveJSON defaultOptions ''KeyVal)
 
 
-type RestAPI = "key" :> Capture "key" Key :> Get '[JSON] [KeyVal]
+type RestAPI = "key" :> Capture "key" Key :> Get '[JSON] KeyVal
+          :<|> "key" :> Capture "key" Key :> ReqBody '[JSON, PlainText] Text :> Put '[JSON] KeyVal
 
 startApp :: Connection -> IO ()
 startApp conn = run 8080 (app conn)
@@ -63,12 +65,22 @@ apiDocs = docs api
 docsBS :: ByteString
 docsBS = TL.encodeUtf8 . TL.pack . markdown $ apiDocs
 
-getter :: MonadIO m => Connection -> Key -> m [KeyVal]
-getter conn key = do
-    vals <- liftIO $ queryNamed conn "select key, name from keys where name=:name" [":name" := key]
-    liftIO $ print vals
-    return [KeyVal k v | (k,v) <- vals]
+getKey :: Connection -> Key -> Handler KeyVal
+getKey conn key = do
+    vals <- liftIO $ queryNamed conn "select key, name from keys where key=:key" [":key" := key]
+    maybe (throwError err404) return (listToMaybe [KeyVal k v | (k,v) <- vals])
+
+putKey :: Connection -> Key -> Text -> Handler KeyVal
+putKey conn key val = do
+    liftIO $ withTransaction conn $ do
+        executeNamed conn deleteSql [":key" := key]
+        executeNamed conn insertSql [":key" := key, ":value" := val]
+    getKey conn key
+    where
+        deleteSql = "delete from keys where key=:key" 
+        insertSql = "insert into keys (key, name) values (:key, :value)" 
+
 
 server :: Connection -> Server RestAPI
-server conn = getter conn
+server conn = getKey conn :<|> putKey conn
 
