@@ -8,9 +8,6 @@ import Pipes.Network.TCP
 import Pipes
 import Control.Concurrent (forkIO)
 
-data R = R { inboundChan :: TChan Event
-           , outboundChan :: TChan Event
-           }
 
 startServer :: ReaderT R IO ()
 startServer = do

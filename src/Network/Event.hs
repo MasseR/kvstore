@@ -1,4 +1,5 @@
 {-# Language DeriveGeneric #-}
+{-# Language FlexibleContexts #-}
 module Network.Event where
 
 import GHC.Generics (Generic)
@@ -10,6 +11,13 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString as BS
 import Pipes
 import qualified Pipes.Prelude as P
+import Control.Concurrent.STM.TChan
+import Control.Concurrent.STM (atomically)
+import Control.Monad.Reader
+
+data R = R { inboundChan :: TChan Event
+           , outboundChan :: TChan Event
+           }
 
 type DecodeEvent = Either (ByteString, ByteOffset, String)
                           (ByteString, ByteOffset, Event)
@@ -17,6 +25,9 @@ type DecodeEvent = Either (ByteString, ByteOffset, String)
 data Event = Put Text Text deriving (Generic, Show)
 
 instance Binary Event
+
+publishEvent :: (MonadReader R m, MonadIO m) => Event -> m ()
+publishEvent event = asks inboundChan >>= \c -> liftIO $ atomically $ writeTChan c event
 
 encoder :: Monad m => Pipe Event BS.ByteString m ()
 encoder = P.map (B.toStrict . encode)
