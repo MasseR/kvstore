@@ -31,8 +31,8 @@ instance Binary Event
 publishEvent :: (MonadReader R m, MonadIO m) => Event -> m ()
 publishEvent event = asks inboundChan >>= \c -> liftIO $ atomically $ writeTChan c event
 
-encoder :: Monad m => Pipe Event BS.ByteString m ()
-encoder = P.map (B.toStrict . encode)
+encoder :: Monad m => Pipe Event ByteString m ()
+encoder = P.map encode
 
 decoder :: Monad m => Pipe BS.ByteString Event m ()
 decoder = await >>= decodeB

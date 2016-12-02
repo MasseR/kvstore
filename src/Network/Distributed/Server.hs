@@ -18,10 +18,10 @@ server :: Socket -> SockAddr -> ReaderT R IO ()
 server s addr = do
     liftIO $ putStrLn $ "Accepted connection from " ++ show addr
     chan <- asks inboundChan
-    runEffect (chanToEvent chan >-> encoder >-> toSocket s)
+    runEffect (chanToEvent chan >-> encoder >-> toSocketLazy s)
 
 chanToEvent :: MonadIO m => TChan Event -> Producer Event m ()
-chanToEvent chan = (liftIO . atomically . readTChan $ chan) >>= yield
+chanToEvent chan = forever ((liftIO . atomically . readTChan $ chan) >>= yield)
 
 eventToChan :: MonadIO m => TChan Event -> Consumer Event m ()
 eventToChan chan = do
