@@ -79,6 +79,7 @@ putKey key val = do
     liftIO $ withTransaction conn $ do
         executeNamed conn deleteSql [":key" := key]
         executeNamed conn insertSql [":key" := key, ":value" := val]
+    publishEvent (Put key val)
     getKey key
     where
         deleteSql = "delete from keys where key=:key" 
