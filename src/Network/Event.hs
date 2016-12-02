@@ -14,9 +14,11 @@ import qualified Pipes.Prelude as P
 import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM (atomically)
 import Control.Monad.Reader
+import Database.SQLite.Simple (Connection)
 
 data R = R { inboundChan :: TChan Event
            , outboundChan :: TChan Event
+           , dbConnection :: Connection
            }
 
 type DecodeEvent = Either (ByteString, ByteOffset, String)

@@ -6,12 +6,12 @@ import Network.Event
 import Control.Monad.Reader
 import Pipes.Network.TCP
 import Pipes
-import Control.Concurrent (forkIO)
+-- import Control.Concurrent (forkIO)
 
 
 startServer :: ReaderT R IO ()
-startServer = do
-    (s,_addr) <- bindSock HostAny "127.0.0.1"
+startServer =
+    listen HostAny "5000" $ \(s,_addr) -> forever $
     void $ ask >>= \r -> acceptFork s $ \(s',addr) -> runReaderT (server s' addr) r
 
 server :: Socket -> SockAddr -> ReaderT R IO ()

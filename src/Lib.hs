@@ -2,11 +2,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators   #-}
 {-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveGeneric   #-}
-module Lib
-    ( startApp
-    ) where
+module Lib  where
 
 import Data.Aeson
 import Data.Aeson.TH
@@ -20,9 +19,11 @@ import Data.ByteString.Lazy (ByteString)
 import Database.SQLite.Simple
 import Servant
 import Servant.Docs
-import Control.Monad.Trans (MonadIO, liftIO)
+import Control.Monad.Trans (liftIO)
 import GHC.Generics (Generic)
 import Data.Maybe (listToMaybe)
+import Control.Monad.Reader
+import Network.Event
 
 data KeyVal = KeyVal
             { key :: Key
@@ -44,11 +45,11 @@ $(deriveJSON defaultOptions ''KeyVal)
 type RestAPI = "key" :> Capture "key" Key :> Get '[JSON] KeyVal
           :<|> "key" :> Capture "key" Key :> ReqBody '[JSON, PlainText] Text :> Put '[JSON] KeyVal
 
-startApp :: Connection -> IO ()
-startApp conn = run 8080 (app conn)
+startApp :: R -> IO ()
+startApp r = run 8080 (app r)
 
-app :: Connection -> Application
-app conn = serve fullAPI (server conn :<|> serveDocs)
+app :: R -> Application
+app r = serve fullAPI (server r :<|> serveDocs)
     where
         serveDocs _ respond = respond $ responseLBS ok200 [plain] docsBS
         plain = ("Content-Type", "text/plain")
@@ -65,22 +66,27 @@ apiDocs = docs api
 docsBS :: ByteString
 docsBS = TL.encodeUtf8 . TL.pack . markdown $ apiDocs
 
-getKey :: Connection -> Key -> Handler KeyVal
-getKey conn key = do
+getKey :: Key -> ReaderT R Handler KeyVal
+getKey key = do
+    conn <- asks dbConnection
     vals <- liftIO $ queryNamed conn "select key, name from keys where key=:key" [":key" := key]
-    maybe (throwError err404) return (listToMaybe [KeyVal k v | (k,v) <- vals])
+    -- maybe (throwError err404) return (listToMaybe [KeyVal k v | (k,v) <- vals])
+    maybe (undefined) return (listToMaybe [KeyVal k v | (k,v) <- vals])
 
-putKey :: Connection -> Key -> Text -> Handler KeyVal
-putKey conn key val = do
+putKey :: Key -> Text -> ReaderT R Handler KeyVal
+putKey key val = do
+    conn <- asks dbConnection
     liftIO $ withTransaction conn $ do
         executeNamed conn deleteSql [":key" := key]
         executeNamed conn insertSql [":key" := key, ":value" := val]
-    getKey conn key
+    getKey key
     where
         deleteSql = "delete from keys where key=:key" 
         insertSql = "insert into keys (key, name) values (:key, :value)" 
 
 
-server :: Connection -> Server RestAPI
-server conn = getKey conn :<|> putKey conn
+server :: R -> Server RestAPI
+server r = enter (runReaderTNat r) serverReader
 
+serverReader :: ServerT RestAPI (ReaderT R Handler)
+serverReader = getKey :<|> putKey
