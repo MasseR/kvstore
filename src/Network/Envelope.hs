@@ -1,7 +1,12 @@
 {-# Language GeneralizedNewtypeDeriving #-}
 {-# Language DeriveGeneric #-}
 {-# Language ScopedTypeVariables #-}
-module Network.Envelope where
+module Network.Envelope
+    ( Envelope
+    , VerifiedEnvelope
+    , msg
+    , verifyEnvelope
+    , envelope) where
 
 import Data.ByteString.Lazy as B
 import Crypto.Hash
