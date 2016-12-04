@@ -71,7 +71,7 @@ getKey key = do
     conn <- asks dbConnection
     vals <- liftIO $ queryNamed conn "select key, name from keys where key=:key" [":key" := key]
     -- maybe (throwError err404) return (listToMaybe [KeyVal k v | (k,v) <- vals])
-    maybe (undefined) return (listToMaybe [KeyVal k v | (k,v) <- vals])
+    maybe undefined return (listToMaybe [KeyVal k v | (k,v) <- vals])
 
 putKey :: Key -> Text -> ReaderT R Handler KeyVal
 putKey key val = do

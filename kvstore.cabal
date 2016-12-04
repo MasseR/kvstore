@@ -36,6 +36,7 @@ library
                      , network
                      , stm
                      , transformers
+                     , cryptonite
   default-language:    Haskell2010
 
 executable kvstore-exe
@@ -47,6 +48,8 @@ executable kvstore-exe
                      , sqlite-simple
                      , stm
                      , mtl
+                     , cryptonite
+                     , yaml
   default-language:    Haskell2010
 
 test-suite kvstore-test
